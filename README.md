@@ -67,7 +67,7 @@ esptool.py --chip esp32c3 --port COM5 write_flash 0x0 firmware_backup.bin
 ## Open Tasks
 
 - Better font rendering with grayscale support
-- Power on/off
+- ~~Power on/off~~
 - SD card reader
 - Read battery percentage
 - WiFi
