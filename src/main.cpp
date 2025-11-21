@@ -19,10 +19,11 @@
 #define BTN_GPIO2 2 // 2 buttons on ADC resistor ladder: Volume Up, Volume Down
 #define BTN_GPIO3 3 // Power button (digital)
 
+#define UART0_RXD 20 // Used for USB connection detection
+
 #define BAT_GPIO0 0 // Battery voltage
-#define CONV_FACTOR 1.5176
 #define READS 10
-#define CHARGER_THRESHOLD 2770
+#define CONV_FACTOR 1.5176
 
 Pangodream_18650_CL BL(BAT_GPIO0, CONV_FACTOR, READS);
 
@@ -148,9 +149,8 @@ Button GetPressedButton()
 // Check if charging
 bool isCharging()
 {
-  // When USB is plugged in, the charging circuit raises the battery voltage
-  // Can also return true if battery is full
-  return rawBat > CHARGER_THRESHOLD;
+  // U0RXD/GPIO20 reads HIGH when USB is connected
+  return digitalRead(UART0_RXD) == HIGH;
 }
 
 // Draw battery information on display
