@@ -1,6 +1,4 @@
 #include <Arduino.h>
-#include <Fonts/FreeMonoBold18pt7b.h>
-#include <Fonts/FreeMonoBold12pt7b.h>
 #include <GxEPD2_BW.h>
 #include <SPI.h>
 #include <FS.h>
@@ -9,6 +7,9 @@
 
 #include "image.h"
 #include "BatteryMonitor.h"
+#include "builtinFonts/bookerly.h"
+#include "builtinFonts/bookerly_large_bold.h"
+#include "EpdFontRenderer.h"
 
 
 #define SPI_FQ 40000000
@@ -53,6 +54,9 @@ volatile DisplayCommand displayCommand = DISPLAY_NONE;
 // Note: XteinkX4 has 4.26" 800x480 display
 GxEPD2_BW<GxEPD2_426_GDEQ0426T82, GxEPD2_426_GDEQ0426T82::HEIGHT> display(
   GxEPD2_426_GDEQ0426T82(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
+
+auto smallFontRenderer = new EpdFontRenderer<GxEPD2_BW<GxEPD2_426_GDEQ0426T82, GxEPD2_426_GDEQ0426T82::HEIGHT>>(new EpdFont(&bookerly), &display);
+auto largeFontRenderer = new EpdFontRenderer<GxEPD2_BW<GxEPD2_426_GDEQ0426T82, GxEPD2_426_GDEQ0426T82::HEIGHT>>(new EpdFont(&bookerly_large_bold), &display);
 
 // FreeRTOS task for non-blocking display updates
 TaskHandle_t displayTaskHandle = NULL;
@@ -165,18 +169,24 @@ bool isCharging()
 // Draw battery information on display
 void drawBatteryInfo()
 {
-  display.setFont(&FreeMonoBold12pt7b);
-  display.setCursor(20, 160);
+  int cursorX = 20;
+  int cursorY = 160;
 
-  bool charging = isCharging();
-  display.printf("Power: %s", charging ? "Charging" : "Battery");
+  char tempString[100] = {};
+  sprintf(tempString, "Power: %s", isCharging() ? "Charging" : "Battery");
+  smallFontRenderer->renderString(tempString, &cursorX, &cursorY, GxEPD_BLACK);
 
-  display.setCursor(40, 200);
-  display.printf("Raw: %i", g_battery.readRawMillivolts());
-  display.setCursor(40, 240);
-  display.printf("Volts: %.2f V", g_battery.readVolts());
-  display.setCursor(40, 280);
-  display.printf("Charge: %i%%", g_battery.readPercentage());
+  cursorX = 40;
+  sprintf(tempString, "Raw: %i", g_battery.readRawMillivolts());
+  smallFontRenderer->renderString(tempString, &cursorX, &cursorY, GxEPD_BLACK);
+
+  cursorX = 40;
+  sprintf(tempString, "Volts: %.2f V", g_battery.readVolts());
+  smallFontRenderer->renderString(tempString, &cursorX, &cursorY, GxEPD_BLACK);
+
+  cursorX = 40;
+  sprintf(tempString, "Charge: %i%%", g_battery.readPercentage());
+  smallFontRenderer->renderString(tempString, &cursorX, &cursorY, GxEPD_BLACK);
 }
 
 // Draw up to top file names from SD on the display, below battery info
@@ -184,15 +194,12 @@ static void drawSdTopFiles()
 {
   // Layout constants aligned with drawBatteryInfo() block
   const int startX = 40;
-  const int startY = 350;
-  const int lineHeight = 26;
   const int maxLines = 5;
   const int maxChars = 30;
 
-  display.setFont(&FreeMonoBold12pt7b);
-
-  display.setCursor(20, 320);
-  display.print("Top 5 files on SD:");
+  int cursorX = 20;
+  int cursorY = 320;
+  smallFontRenderer->renderString("Top 5 files on SD:", &cursorX, &cursorY, GxEPD_BLACK);
 
   auto drawTruncated = [&](int lineIdx, const char *text)
   {
@@ -203,8 +210,8 @@ static void drawSdTopFiles()
       s.remove(maxChars - 1);
       s += "…";
     }
-    display.setCursor(startX, startY + lineIdx * lineHeight);
-    display.print(s);
+    cursorX = startX;
+    smallFontRenderer->renderString(s.c_str(), &cursorX, &cursorY, GxEPD_BLACK);
   };
 
   // Ensure SD is initialized using global flag; try to init if needed
@@ -278,14 +285,14 @@ void displayUpdateTask(void *parameter)
           display.fillScreen(GxEPD_WHITE);
 
           // Header font
-          display.setFont(&FreeMonoBold18pt7b);
-          display.setCursor(20, 50);
-          display.print("Xteink X4 Sample");
+          int cursorX = 20;
+          int cursorY = 50;
+          largeFontRenderer->renderString("Xteink X4 Sample", &cursorX, &cursorY, GxEPD_BLACK);
 
           // Button text with smaller font
-          display.setFont(&FreeMonoBold12pt7b);
-          display.setCursor(20, 100);
-          display.print(getButtonName(currentPressedButton));
+          cursorX = 20;
+          cursorY = 100;
+          smallFontRenderer->renderString(getButtonName(currentPressedButton), &cursorX, &cursorY, GxEPD_BLACK);
 
           // Draw battery information
           drawBatteryInfo();
@@ -304,21 +311,21 @@ void displayUpdateTask(void *parameter)
       else if (cmd == DISPLAY_TEXT)
       {
         // Use partial refresh for text updates
-        display.setPartialWindow(0, 75, display.width(), 225);
+        display.setPartialWindow(0, 75, display.width(), 200);
         display.firstPage();
         do
         {
           display.fillScreen(GxEPD_WHITE);
-          display.setFont(&FreeMonoBold12pt7b);
-          display.setCursor(20, 100);
-          display.print(getButtonName(currentPressedButton));
+          int cursorX = 20;
+          int cursorY = 100;
+          smallFontRenderer->renderString(getButtonName(currentPressedButton), &cursorX, &cursorY, GxEPD_BLACK);
           drawBatteryInfo();
         } while (display.nextPage());
       }
       else if (cmd == DISPLAY_BATTERY)
       {
         // Use partial refresh for battery updates
-        display.setPartialWindow(0, 135, display.width(), 200);
+        display.setPartialWindow(0, 135, display.width(), 150);
         display.firstPage();
         do
         {
@@ -335,9 +342,12 @@ void displayUpdateTask(void *parameter)
         {
           display.fillScreen(GxEPD_WHITE);
           // Header font
-          display.setFont(&FreeMonoBold18pt7b);
-          display.setCursor(120, 380);
-          display.print("Sleeping...");
+
+          int width, height;
+          largeFontRenderer->font->getTextDimensions("Sleeping...", &width, &height);
+          int cursorX = (display.width() - width) / 2;
+          int cursorY = 380;
+          largeFontRenderer->renderString("Sleeping...", &cursorX, &cursorY, GxEPD_BLACK);
         } while (display.nextPage());
       }
     }
